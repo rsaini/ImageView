@@ -18,3 +18,5 @@ HEADERS  += imageview.h
 FORMS    += imageview.ui
 
 RC_FILE = imageview.rc
+
+RESOURCES += images.qrc
