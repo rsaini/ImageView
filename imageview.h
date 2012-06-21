@@ -4,9 +4,9 @@
 #include <QMainWindow>
 #include <QtCore>
 
-
 class QTimer;
 class QPushButton;
+class QLabel;
 
 namespace Ui {
 class ImageView;
@@ -29,6 +29,16 @@ public slots:
 	void about();
 	void slideShow();
 	void setSlideShowDelay(int delay);
+	void thumb1();
+	void thumb2();
+	void thumb3();
+	void thumb4();
+	void thumb5();
+	void thumb6();
+	void thumb7();
+	void thumb8();
+	void thumb9();
+	void thumb10();
 
 protected:
 	void resizeEvent(QResizeEvent *event);
@@ -39,13 +49,20 @@ private:
 	QFileInfoList fileList;
 	QPixmap currentPixmap;
 	int imageNumber;
+	int pageNumber;
 	int totalImages;
 	float slideShowDelay;
 	QTimer* slideshowTimer;
-	void updateGUI();
-	void setImage(QString filePath);
 
-	void setButtonIcon(QPushButton* button, QString fileName, int width, int size);
+	QList<QPushButton*> thumbList;
+
+	void updateGUI();
+	void setImage(QString filePath); // Sets the image of the central label from the file in filePath
+	void setButtonIcon(QPushButton* button, QString fileName, int width, int size, bool fast);
+	void setThumbnailImage(QPushButton *button, QString fileName, int width, int height, bool fast);
+	void generateThumbnails();
+	void updateThumbnails();
+
 };
 
 #endif // IMAGEVIEW_H
