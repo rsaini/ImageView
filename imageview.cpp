@@ -6,30 +6,7 @@ ImageView::ImageView(QWidget *parent) : QMainWindow(parent), ui(new Ui::ImageVie
 {
 	ui->setupUi(this);
 
-	connect(ui->openAction, SIGNAL(triggered()), this, SLOT(open()));
-	connect(ui->exitAction, SIGNAL(triggered()), this, SLOT(close()));
-	connect(ui->actionAbout_ImageView, SIGNAL(triggered()), this, SLOT(about()));
-	connect(ui->nextButton, SIGNAL(clicked()), this, SLOT(nextImage()));
-	connect(ui->previousButton, SIGNAL(clicked()), this, SLOT(previousImage()));
-	connect(ui->beginButton, SIGNAL(clicked()), this, SLOT(setBegin()));
-	connect(ui->endButton, SIGNAL(clicked()), this, SLOT(setEnd()));
-	connect(ui->slideShowButton, SIGNAL(clicked()), this, SLOT(slideShow()));
-	slideshowTimer = new QTimer(this);
-	connect(slideshowTimer, SIGNAL(timeout()), this, SLOT(nextImage()));
-
-	ui->imageNameLabel->setText(tr("Select a folder from the <b>file -> open</b> menu to view images."));
-	ui->openAction->setShortcut(tr("Ctrl+O"));
-
-	ui->previousButton->setEnabled(false);
-	ui->nextButton->setEnabled(false);
-	ui->beginButton->setEnabled(false);
-	ui->endButton->setEnabled(false);
-	ui->slideShowButton->setEnabled(false);
-
-	thumbList << ui->thumb1 << ui->thumb2 << ui->thumb3 << ui->thumb4 <<
-				 ui->thumb5 << ui->thumb6 << ui->thumb7 << ui->thumb8 <<
-				 ui->thumb9 << ui->thumb10;
-
+	thumbList << ui->thumb1 << ui->thumb2 << ui->thumb3 << ui->thumb4 << ui->thumb5 << ui->thumb6 << ui->thumb7 << ui->thumb8 << ui->thumb9 << ui->thumb10;
 	connect(thumbList.at(0), SIGNAL(clicked()), this, SLOT(thumb1()));
 	connect(thumbList.at(1), SIGNAL(clicked()), this, SLOT(thumb2()));
 	connect(thumbList.at(2), SIGNAL(clicked()), this, SLOT(thumb3()));
@@ -41,9 +18,44 @@ ImageView::ImageView(QWidget *parent) : QMainWindow(parent), ui(new Ui::ImageVie
 	connect(thumbList.at(8), SIGNAL(clicked()), this, SLOT(thumb9()));
 	connect(thumbList.at(9), SIGNAL(clicked()), this, SLOT(thumb10()));
 
+	connect(ui->openAction, SIGNAL(triggered()), this, SLOT(open()));
+	connect(ui->exitAction, SIGNAL(triggered()), this, SLOT(close()));
+	connect(ui->actionAbout_ImageView, SIGNAL(triggered()), this, SLOT(about()));
+	connect(ui->nextButton, SIGNAL(clicked()), this, SLOT(nextImage()));
+	connect(ui->previousButton, SIGNAL(clicked()), this, SLOT(previousImage()));
+	connect(ui->beginButton, SIGNAL(clicked()), this, SLOT(setBegin()));
+	connect(ui->endButton, SIGNAL(clicked()), this, SLOT(setEnd()));
+	connect(ui->slideShowButton, SIGNAL(clicked()), this, SLOT(slideShow()));
+	connect(ui->loadFolderButton, SIGNAL(clicked()), this, SLOT(on_loadFolderButton_clicked()));
+
+	slideshowTimer = new QTimer(this);
+	connect(slideshowTimer, SIGNAL(timeout()), this, SLOT(nextImage()));
+
+	ui->imageNameLabel->setText(tr("Select a folder from the <b>file -> open</b> menu to view images."));
+	ui->openAction->setShortcut(tr("Ctrl+O"));
+
 	for (int i = 0; i < 10; i++) {
 		thumbList.at(i)->setEnabled(false);
 	}
+	ui->previousButton->setEnabled(false);
+	ui->nextButton->setEnabled(false);
+	ui->beginButton->setEnabled(false);
+	ui->endButton->setEnabled(false);
+	ui->slideShowButton->setEnabled(false);
+
+	folderTreeModel = new QFileSystemModel(this);
+	folderTreeModel->setRootPath(QDir::rootPath());
+	folderTreeModel->setFilter(QDir::NoDotAndDotDot | QDir::AllDirs);
+	ui->folderTreeView->setModel(folderTreeModel);
+	ui->folderTreeView->setColumnHidden(1, true);
+	ui->folderTreeView->setColumnHidden(2, true);
+	ui->folderTreeView->setColumnHidden(3, true);
+
+	fileListModel = new QFileSystemModel(this);
+	fileListModel->setRootPath(QDir::rootPath());
+	fileListModel->setFilter(QDir::NoDotAndDotDot | QDir::Files);
+	ui->fileListView->setModel(fileListModel);
+	ui->fileListView->setRootIndex(fileListModel->setRootPath(QDir::rootPath()));
 
 	setButtonIcon(ui->slideShowButton, ":/images/buttons/play.png", 48, 48, false);
 	setButtonIcon(ui->nextButton, ":/images/buttons/next.png", 48, 48, false);
@@ -65,23 +77,13 @@ ImageView::~ImageView()
 }
 
 
-void ImageView::setButtonIcon(QPushButton *button, QString fileName, int width, int height, bool fast)
+void ImageView::openFolder(QString f_name)
 {
-	QPixmap iconPixmap(fileName);
-	QIcon buttonIcon(iconPixmap.scaled(width, height, Qt::KeepAspectRatio, (fast ? Qt::FastTransformation : Qt::SmoothTransformation) ));
-	button->setIcon(buttonIcon);
-	button->setIconSize(iconPixmap.scaled(width, height).rect().size());
-}
-
-
-void ImageView::open()
-{
-	folderName = QFileDialog::getExistingDirectory(this, tr("Open Directory"), "./", QFileDialog::ShowDirsOnly);
+	folderName = f_name;
 	if (folderName == "") {
 		return;
 	}
-
-	QDir imageDir(folderName);
+	QDir imageDir(f_name);
 	QStringList imageFilters;
 	imageFilters << "*.bmp" << "*.png" << "*.jpg" << "*.jpeg" << "*.gif";
 
@@ -106,117 +108,6 @@ void ImageView::open()
 }
 
 
-void ImageView::previousImage()
-{
-	imageNumber--;
-	updateGUI();
-}
-
-
-void ImageView::nextImage()
-{
-	imageNumber++;
-	if (imageNumber > totalImages-1) {
-		imageNumber = 0;
-	}
-	updateGUI();
-	if(slideshowTimer->isActive()) {
-		slideshowTimer->start((int)(slideShowDelay * 1000));
-	}
-	updateThumbnails();
-}
-
-
-void ImageView::setBegin()
-{
-	if (totalImages == 0) {
-		return;
-	}
-	//imageNumber = 0;
-
-	imageNumber = (pageNumber -1) * 10;
-	updateGUI();
-}
-
-
-void ImageView::setEnd()
-{
-	if (totalImages == 0) {
-		return;
-	}
-	imageNumber = (pageNumber + 1) * 10;
-	//imageNumber = totalImages-1;
-	updateGUI();
-}
-
-
-void ImageView::updateGUI()
-{
-	if (totalImages == 0 ) {
-		ui->nextButton->setEnabled(false);
-		ui->previousButton->setEnabled(false);
-		ui->beginButton->setEnabled(false);
-		ui->endButton->setEnabled(false);
-		ui->slideShowButton->setEnabled(false);
-		ui->imageLabel->clear();
-		ui->imageNameLabel->setText(tr("No image files found.\nSelect a folder with image files (*.png, *.jpg, *.gif, *.bmp)."));
-		ui->imageNumberLabel->setText("0 / 0");
-		updateThumbnails();
-		return;
-	}
-
-	if (totalImages == 1) {
-		ui->slideShowButton->setEnabled(false);
-
-	} else {
-		ui->slideShowButton->setEnabled(true);
-	}
-
-	QFileInfo currentFile = fileList.at(imageNumber);
-	setImage(currentFile.absoluteFilePath());
-
-	QString number = QString::number(imageNumber+1) + " / " + QString::number(totalImages);
-	ui->imageNumberLabel->setText(number);
-	ui->imageNameLabel->setText(currentFile.fileName());
-
-	if (pageNumber == 0) {
-		ui->beginButton->setEnabled(false);
-	} else {
-		ui->beginButton->setEnabled(true);
-	}
-
-	if (pageNumber == ((totalImages-1) / 10)) {
-		ui->endButton->setEnabled(false);
-	} else {
-		ui->endButton->setEnabled(true);
-	}
-
-	ui->previousButton->setEnabled(true);
-	ui->nextButton->setEnabled(true);
-
-	if (imageNumber == 0) {
-		ui->previousButton->setEnabled(false);
-	}
-	if (imageNumber == totalImages-1) {
-		ui->nextButton->setEnabled(false);
-	}
-
-	updateThumbnails();
-}
-
-
-void ImageView::resizeEvent(QResizeEvent* /* event */)
-{
-	if (!currentPixmap.isNull()) {
-		QSize imageSize = currentPixmap.size();
-		if (imageSize.width() < ui->imageLabel->width() && imageSize.height() < ui->imageLabel->height()) {
-			ui->imageLabel->setPixmap(currentPixmap);
-		} else {
-			ui->imageLabel->setPixmap(currentPixmap.scaled(ui->imageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-		}
-	}
-}
-
 void ImageView::setImage(QString filePath)
 {
 	currentPixmap = QPixmap(filePath);
@@ -230,19 +121,199 @@ void ImageView::setImage(QString filePath)
 	if (imageSize.width() < ui->imageLabel->width() && imageSize.height() < ui->imageLabel->height()) {
 		ui->imageLabel->setPixmap(currentPixmap);
 	} else {
-		ui->imageLabel->setPixmap(currentPixmap.scaled(ui->imageLabel->size(),
-													   Qt::KeepAspectRatio,
-													   Qt::SmoothTransformation));
+		ui->imageLabel->setPixmap(currentPixmap.scaled(ui->imageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	}
 
 }
 
 
+void ImageView::setButtonIcon(QPushButton *button, QString fileName, int width, int height, bool fast)
+{
+	QPixmap iconPixmap(fileName);
+	QIcon buttonIcon(iconPixmap.scaled(width, height, Qt::KeepAspectRatio, (fast ? Qt::FastTransformation : Qt::SmoothTransformation) ));
+	button->setIcon(buttonIcon);
+	button->setIconSize(iconPixmap.scaled(width, height).rect().size());
+}
+
+
+//-------------------------- Protected Functions -----------------------------//
+void ImageView::resizeEvent(QResizeEvent* /* event */)
+{
+	if (!currentPixmap.isNull()) {
+		QSize imageSize = currentPixmap.size();
+		if (imageSize.width() < ui->imageLabel->width() && imageSize.height() < ui->imageLabel->height()) {
+			ui->imageLabel->setPixmap(currentPixmap);
+		} else {
+			ui->imageLabel->setPixmap(currentPixmap.scaled(ui->imageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+		}
+	}
+}
+//----------------------------------------------------------------------------//
+
+
+
+//-------------------------------- Slots -------------------------------------//
+void ImageView::open()
+{
+	folderName = QFileDialog::getExistingDirectory(this, tr("Open Directory"), "./", QFileDialog::ShowDirsOnly);
+	openFolder(folderName);
+}
+
+
+void ImageView::on_loadFolderButton_clicked()
+{
+	QModelIndex index = ui->folderTreeView->currentIndex();
+	QString dirPath = folderTreeModel->fileInfo(index).absoluteFilePath();
+	ui->fileListView->setRootIndex(fileListModel->setRootPath(dirPath));
+	openFolder(dirPath);
+}
+
+
+void ImageView::previousImage()
+{
+	imageNumber--;
+	updateGUI();
+}
+
+
+void ImageView::nextImage()
+{
+	imageNumber++;
+	if (imageNumber > totalImages-1) {
+		imageNumber = 0;
+	}
+
+	updateGUI();
+
+	// Reset timer to achieve accurate delays after update of GUI.
+	if(slideshowTimer->isActive()) {
+		slideshowTimer->start((int)(slideShowDelay * 1000));
+	}
+}
+
+
+void ImageView::setBegin()
+{
+	if (totalImages == 0) {
+		return;
+	}
+	imageNumber = (pageNumber -1) * 10;
+	updateGUI();
+}
+
+
+void ImageView::setEnd()
+{
+	if (totalImages == 0) {
+		return;
+	}
+	imageNumber = (pageNumber + 1) * 10;
+	updateGUI();
+}
+
+
+void ImageView::updateGUI()
+{
+	if (totalImages == 0 ) {
+		fileList.clear();
+		ui->nextButton->setEnabled(false);
+		ui->previousButton->setEnabled(false);
+		ui->beginButton->setEnabled(false);
+		ui->endButton->setEnabled(false);
+		ui->slideShowButton->setEnabled(false);
+		ui->imageLabel->clear();
+		ui->imageNameLabel->setText(tr("No image files found.\nSelect a folder with image files (*.png, *.jpg, *.gif, *.bmp)."));
+		ui->imageNumberLabel->setText("0 / 0");
+
+		QIcon ico;
+		for (int i = 0; i < 10; i++) {
+			thumbList.at(i)->setEnabled(false);
+			thumbList.at(i)->setStyleSheet("");
+			thumbList.at(i)->setIcon(ico);
+			pageNumber = 0;
+		}
+		return;
+	}
+
+	setImage(fileList.at(imageNumber).absoluteFilePath()); // Update central image.
+
+	//--- Update image number and name labels ---///
+	QString number = QString::number(imageNumber+1) + " / " + QString::number(totalImages);
+	ui->imageNumberLabel->setText(number);
+	ui->imageNameLabel->setText(fileList.at(imageNumber).fileName());
+	//---//
+
+	//--- Update slideshow (play/pause) button ---//
+	if (totalImages == 1) {
+		ui->slideShowButton->setEnabled(false);
+
+	} else {
+		ui->slideShowButton->setEnabled(true);
+	}
+	//---//
+
+	//--- Update previous and next buttons. ---//
+	ui->previousButton->setEnabled(true);
+	ui->nextButton->setEnabled(true);
+
+	if (imageNumber == 0) {
+		ui->previousButton->setEnabled(false);
+	}
+	if (imageNumber == totalImages-1) {
+		ui->nextButton->setEnabled(false);
+	}
+	//---//
+
+
+	//--- Highlight current thumbnail ---//
+	for (int i = 0; i < 10; i++) {
+		thumbList.at(i)->setStyleSheet("");
+	}
+	thumbList.at(imageNumber % 10)->setStyleSheet("QPushButton { background-color : #404040; border-top: 4px;}");
+	//---//
+
+	//--- Update begin and end buttons ---//
+	if (pageNumber == 0) {
+		ui->beginButton->setEnabled(false);
+	} else {
+		ui->beginButton->setEnabled(true);
+	}
+
+	if (pageNumber == ((totalImages-1) / 10)) {
+		ui->endButton->setEnabled(false);
+	} else {
+		ui->endButton->setEnabled(true);
+	}
+	//---//
+
+	//--- Update Thumbnails only when page is changed. ---//
+	int currentPage = imageNumber / 10;
+	if (currentPage == pageNumber) {
+		return;
+	} else {
+		pageNumber = currentPage;
+		if (pageNumber == 0) {
+			ui->beginButton->setEnabled(false);
+		} else {
+			ui->beginButton->setEnabled(true);
+		}
+
+		if (pageNumber == ((totalImages-1) / 10)) {
+			ui->endButton->setEnabled(false);
+		} else {
+			ui->endButton->setEnabled(true);
+		}
+		updateThumbnails();
+	}
+	//---//
+}
+
+
 void ImageView::about()
 {
-	QMessageBox::about(this, tr("About ImageView"),
-					   tr("<b>Made for Eyenuk LLC.</b><br />My first GUI app :) - 2012/06/18"));
+	QMessageBox::about(this, tr("About ImageView"), tr("<b>Made for Eyenuk LLC.</b><br />My first GUI app :) - 2012/06/18"));
 }
+
 
 void ImageView::slideShow()
 {
@@ -274,7 +345,7 @@ void ImageView::generateThumbnails()
 	for (int i = 0; i < 10 && i < totalImages ; i++) {
 		thumbList.at(i)->setEnabled(true);
 		QString filePath = fileList.at(i).absoluteFilePath();
-		setThumbnailImage(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+		setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
 	}
 
 	thumbList.at(0)->setStyleSheet("QPushButton { background-color : #404040; border-top: 4px;}");
@@ -283,61 +354,17 @@ void ImageView::generateThumbnails()
 
 void ImageView::updateThumbnails()
 {
-	if (totalImages == 0) {
-		for (int i = 0; i < 10; i++) {
-			thumbList.at(i)->setEnabled(false);
-			thumbList.at(i)->setStyleSheet("");
-			QIcon ico;
-			thumbList.at(i)->setIcon(ico);
-			pageNumber = 0;
-		}
-		return;
-	}
-
-	for (int i = 0; i < 10; i++) {
-		thumbList.at(i)->setStyleSheet("");
-	}
-	thumbList.at(imageNumber % 10)->setStyleSheet("QPushButton { background-color : #404040; border-top: 4px;}");
-
-	int currentPage = imageNumber / 10;
-	if (currentPage == pageNumber) {
-		return;
-	}
-
-	pageNumber = currentPage;
-
-	if (pageNumber == 0) {
-		ui->beginButton->setEnabled(false);
-	} else {
-		ui->beginButton->setEnabled(true);
-	}
-
-	if (pageNumber == ((totalImages-1) / 10)) {
-		ui->endButton->setEnabled(false);
-	} else {
-		ui->endButton->setEnabled(true);
-	}
-
 	for (int i = 0; i < 10; i++) {
 		QIcon ico;
 		thumbList.at(i)->setIcon(ico);
 		thumbList.at(i)->setEnabled(false);
 	}
 
-	for (int i = 0; i < 10 && i < (totalImages- currentPage*10) ; i++) {
+	for (int i = 0; i < 10 && i < (totalImages- pageNumber*10) ; i++) {
 		thumbList.at(i)->setEnabled(true);
-		QString filePath = fileList.at(currentPage*10 + i).absoluteFilePath();
-		setThumbnailImage(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+		QString filePath = fileList.at(pageNumber*10 + i).absoluteFilePath();
+		setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
 	}
-}
-
-
-void ImageView::setThumbnailImage(QPushButton *button, QString fileName, int width, int height, bool fast)
-{
-	QPixmap iconPixmap(fileName);
-	QIcon buttonIcon(iconPixmap.scaled(width, height, Qt::KeepAspectRatio, (fast ? Qt::FastTransformation : Qt::SmoothTransformation) ));
-	button->setIcon(buttonIcon);
-	button->setIconSize(iconPixmap.scaled(width+8, height+8).rect().size());
 }
 
 
@@ -400,3 +427,43 @@ void ImageView::thumb10()
 	imageNumber = pageNumber*10 + 9;
 	updateGUI();
 }
+
+
+void ImageView::on_folderTreeView_clicked(const QModelIndex &index)
+{
+	QString dirPath = folderTreeModel->fileInfo(index).absoluteFilePath();
+	ui->fileListView->setRootIndex(fileListModel->setRootPath(dirPath));
+}
+
+
+void ImageView::on_folderTreeView_doubleClicked(const QModelIndex &index)
+{
+	QString dirPath = folderTreeModel->fileInfo(index).absoluteFilePath();
+	ui->fileListView->setRootIndex(fileListModel->setRootPath(dirPath));
+	openFolder(dirPath);
+}
+
+
+void ImageView::on_fileListView_doubleClicked(const QModelIndex &index)
+{
+	QFileInfo fileInfo = fileListModel->fileInfo(index);
+	if (!fileInfo.isFile()) {
+		return;
+	}
+
+	if (folderName == "") {
+		openFolder(fileInfo.dir().absolutePath());
+
+	} else if (fileInfo.dir() != fileList.at(0).dir()) {
+		openFolder(fileInfo.dir().absolutePath());
+	}
+
+	int fileIndex = fileList.indexOf(fileInfo);
+	if (fileIndex == -1) {
+		return;
+	}
+
+	imageNumber = fileIndex;
+	updateGUI();
+}
+//----------------------------------------------------------------------------//

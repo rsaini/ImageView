@@ -2,7 +2,7 @@
 #define IMAGEVIEW_H
 
 #include <QMainWindow>
-#include <QtCore>
+#include <QtGui>
 
 class QTimer;
 class QPushButton;
@@ -15,13 +15,17 @@ class ImageView;
 class ImageView : public QMainWindow
 {
 	Q_OBJECT
-	
+
 public:
 	explicit ImageView(QWidget *parent = 0);
 	~ImageView();
 
-public slots:
+protected:
+	void resizeEvent(QResizeEvent *event);
+
+private slots:
 	void open();
+	void on_loadFolderButton_clicked();
 	void nextImage();
 	void previousImage();
 	void setBegin();
@@ -39,30 +43,30 @@ public slots:
 	void thumb8();
 	void thumb9();
 	void thumb10();
+	void on_folderTreeView_clicked(const QModelIndex &index);
+	void on_folderTreeView_doubleClicked(const QModelIndex &index);
+	void on_fileListView_doubleClicked(const QModelIndex &index);
 
-protected:
-	void resizeEvent(QResizeEvent *event);
-	
 private:
 	Ui::ImageView *ui;
-	QString folderName;
-	QFileInfoList fileList;
-	QPixmap currentPixmap;
-	int imageNumber;
-	int pageNumber;
-	int totalImages;
-	float slideShowDelay;
-	QTimer* slideshowTimer;
+	QList<QPushButton*> thumbList; // List of the thumbnail QPushButtons in the ui.
+	QString folderName;  // Current folder which is displayed
+	QFileInfoList fileList; // List of FileInfos of all files in folderName
+	QPixmap currentPixmap; // The current picture displayed. Stored, so that resizing does not cause loss of data.
+	int imageNumber; // Current number in the fileList of the picture displayed.
+	int pageNumber; // Current page of the file displayed. = totalImages-1 / 10;
+	int totalImages; // The total images in folderName
+	float slideShowDelay; // Delay for the slideshow in secs.
+	QTimer* slideshowTimer; // Timer for the slideshow. triggers the next() slot after slideShowDelay * 1000
+	QFileSystemModel* folderTreeModel; // Model for the folderTreeView.
+	QFileSystemModel* fileListModel; // Model for the fileListView.
 
-	QList<QPushButton*> thumbList;
-
+	void openFolder(QString f_name);
 	void updateGUI();
 	void setImage(QString filePath); // Sets the image of the central label from the file in filePath
 	void setButtonIcon(QPushButton* button, QString fileName, int width, int size, bool fast);
-	void setThumbnailImage(QPushButton *button, QString fileName, int width, int height, bool fast);
 	void generateThumbnails();
 	void updateThumbnails();
-
 };
 
 #endif // IMAGEVIEW_H
