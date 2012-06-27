@@ -11,9 +11,11 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        imageview.cpp
+        imageview.cpp \
+    thumbnail.cpp
 
-HEADERS  += imageview.h
+HEADERS  += imageview.h \
+    thumbnail.h
 
 FORMS    += imageview.ui
 

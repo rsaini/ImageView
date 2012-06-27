@@ -7,6 +7,7 @@
 class QTimer;
 class QPushButton;
 class QLabel;
+class Thumbnail;
 
 namespace Ui {
 class ImageView;
@@ -46,6 +47,7 @@ private slots:
 	void on_folderTreeView_clicked(const QModelIndex &index);
 	void on_folderTreeView_doubleClicked(const QModelIndex &index);
 	void on_fileListView_doubleClicked(const QModelIndex &index);
+	void upa();
 
 private:
 	Ui::ImageView *ui;
@@ -60,6 +62,11 @@ private:
 	QTimer* slideshowTimer; // Timer for the slideshow. triggers the next() slot after slideShowDelay * 1000
 	QFileSystemModel* folderTreeModel; // Model for the folderTreeView.
 	QFileSystemModel* fileListModel; // Model for the fileListView.
+
+	QList<Thumbnail*> thumbnailImageList;
+	QList<QThread*> threadList;
+	int numberOfThreadsDone;
+	QMutex thumbnailThreadsMutex;
 
 	void openFolder(QString f_name);
 	void updateGUI();

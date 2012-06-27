@@ -1,6 +1,10 @@
 #include <QtGui>
+#include <QThread>
+#include <Windows.h>
+
 #include "imageview.h"
 #include "ui_imageview.h"
+#include "thumbnail.h"
 
 ImageView::ImageView(QWidget *parent) : QMainWindow(parent), ui(new Ui::ImageView)
 {
@@ -342,10 +346,38 @@ void ImageView::generateThumbnails()
 		return;
 	}
 
+	/*
 	for (int i = 0; i < 10 && i < totalImages ; i++) {
 		thumbList.at(i)->setEnabled(true);
 		QString filePath = fileList.at(i).absoluteFilePath();
 		setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+	}
+	*/
+
+	thumbnailImageList.clear();
+	Thumbnail* thumb;
+	for (int i = 0; i < totalImages; i++) {
+		thumb = new Thumbnail;
+		thumb->setImageFromFile(fileList.at(i).absoluteFilePath(), thumbList.at(i%10)->width()-8, thumbList.at(i%10)->height()-8, true);
+		thumbnailImageList << thumb;
+	}
+
+
+	threadList.clear();
+	QThread* myThread;
+	numberOfThreadsDone = 0;
+
+	for (int i = 0; i < 10 && i < (totalImages- pageNumber*10) ; i++) {
+		//thumbList.at(i)->setEnabled(true);
+		//QString filePath = fileList.at(pageNumber*10 + i).absoluteFilePath();
+		//setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+
+		myThread = new QThread;
+		threadList << myThread;
+		connect(threadList.at(i), SIGNAL(started()), thumbnailImageList.at(pageNumber*10 + i), SLOT(resizeImage()));
+		connect(threadList.at(i), SIGNAL(finished()), this, SLOT(upa()));
+		thumbnailImageList.at(pageNumber*10 + i)->moveToThread(threadList.at(i));
+		myThread->start();
 	}
 
 	thumbList.at(0)->setStyleSheet("QPushButton { background-color : #404040; border-top: 4px;}");
@@ -360,11 +392,44 @@ void ImageView::updateThumbnails()
 		thumbList.at(i)->setEnabled(false);
 	}
 
+	threadList.clear();
+	QThread* myThread;
+	numberOfThreadsDone = 0;
+
+	for (int i = 0; i < 10 && i < (totalImages- pageNumber*10) ; i++) {
+		//thumbList.at(i)->setEnabled(true);
+		//QString filePath = fileList.at(pageNumber*10 + i).absoluteFilePath();
+		//setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+
+		myThread = new QThread;
+		threadList << myThread;
+		connect(threadList.at(i), SIGNAL(started()), thumbnailImageList.at(pageNumber*10 + i), SLOT(resizeImage()));
+		connect(threadList.at(i), SIGNAL(finished()), this, SLOT(upa()));
+		thumbnailImageList.at(pageNumber*10 + i)->moveToThread(threadList.at(i));
+		myThread->start();
+	}
+}
+
+
+void ImageView::upa()
+{
+	//thumbnailThreadsMutex.lock();
+	numberOfThreadsDone++;
+	if (numberOfThreadsDone < threadList.size()) {
+			//thumbnailThreadsMutex.unlock();
+			return;
+	}
+
+	threadList.clear();
+
 	for (int i = 0; i < 10 && i < (totalImages- pageNumber*10) ; i++) {
 		thumbList.at(i)->setEnabled(true);
-		QString filePath = fileList.at(pageNumber*10 + i).absoluteFilePath();
-		setButtonIcon(thumbList.at(i), filePath, thumbList.at(i)->width()-8, thumbList.at(i)->height()-8, true);
+		QPixmap pix = QPixmap::fromImage(thumbnailImageList.at(pageNumber*10 + i)->resizedImage);
+		QIcon buttonIcon(pix);
+		thumbList.at(i)->setIcon(buttonIcon);
+		thumbList.at(i)->setIconSize(pix.rect().size());
 	}
+	//thumbnailThreadsMutex.unlock();
 }
 
 
